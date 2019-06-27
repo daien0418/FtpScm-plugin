@@ -1,0 +1,24 @@
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
+    <f:entry title="${%FtpHost}" field="host">
+        <f:textbox />
+    </f:entry>
+    <f:entry title="${%FtpPort}" field="port">
+        <f:textbox />
+    </f:entry>
+    <f:entry title="${%UserName}" field="userName">
+        <f:textbox />
+    </f:entry>
+    <f:entry title="${%Password}" field="password">
+        <f:textbox />
+    </f:entry>
+    <f:entry title="${%FtpPath}" field="ftpPath">
+        <f:textbox />
+    </f:entry>
+    <f:entry title="${%FileNames}" field="fileNames" description="${%FileNamesDescr}">
+        <f:textarea />
+    </f:entry>
+    <f:entry title="${%CleanWorkSpace}" field="cleanWorkSpace">
+            <f:checkbox />
+    </f:entry>
+</j:jelly>
