@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:t="/lib/hudson" xmlns:f="/lib/form" xmlns:c="/lib/credentials">
+    <f:section title="${%Ftp Servers}">
+    <f:entry title="${%FtpServers}">
+      <div>
+      <f:repeatable var="inst" items="${instance.installations}" add="${%AddFtp}">
+        <table width="100%">
+
+          <f:entry title="${%Name}">
+            <f:textbox name="name" value="${inst.name}" checkUrl="'${rootURL}/descriptor/SampleConfiguration/checkMandatory?value='+escape(this.value)"/>
+          </f:entry>
+
+          <f:entry title="${%Ip}" field="ip">
+            <f:textbox name="ip" value="${inst.ip}"/>
+          </f:entry>
+
+          <f:entry title="${%Port}" field="port">
+            <f:textbox name="port" value="${inst.port}"/>
+          </f:entry>
+
+          <f:entry title="${%Credentials}" field="credentialsId">
+          	<c:select value="${inst.credentialsId}"/>
+          </f:entry>
+
+		  <f:validateButton title="${%Test Connection}" progress="${%Testing...}" method="testConnection" with="ip,port,credentialsId"/>
+
+          <f:entry title="">
+            <div align="right">
+              <f:repeatableDeleteButton value="${%DeleteFtp}"/>
+            </div>
+          </f:entry>
+        </table>
+      </f:repeatable>
+      </div>
+    </f:entry>
+    </f:section>
+</j:jelly>

@@ -5,14 +5,12 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.SocketException;
-import java.net.UnknownHostException;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import org.apache.commons.net.ftp.FTPClient;
-import org.apache.commons.net.ftp.FTPReply;
 import org.kohsuke.stapler.DataBoundConstructor;
+
+import com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredentials;
 
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import hudson.Extension;
@@ -27,20 +25,12 @@ import hudson.scm.PollingResult;
 import hudson.scm.SCM;
 import hudson.scm.SCMDescriptor;
 import hudson.scm.SCMRevisionState;
-import io.jenkins.plugins.sample.Messages;
+import hudson.util.ListBoxModel;
 
 public class FtpScm extends SCM {
 
-    public static final String PATTERN = "(2[0-5]{2}|[0-1]?\\d{1,2})(\\.(2[0-5]{2}|[0-1]?\\d{1,2})){3}";
+    public final String ftpServer;
 
-    @CheckForNull
-    public final String host;
-    @CheckForNull
-    public final String port;
-    @CheckForNull
-    public final String userName;
-    @CheckForNull
-    public final String password;
     public final String ftpPath;
     @CheckForNull
     public final String fileNames;
@@ -48,12 +38,9 @@ public class FtpScm extends SCM {
     public final boolean cleanWorkSpace;
 
     @DataBoundConstructor
-    public FtpScm(@CheckForNull String host, @CheckForNull String port, @CheckForNull String userName,
-            @CheckForNull String password, String ftpPath, @CheckForNull String fileNames, boolean cleanWorkSpace) {
-        this.host = host;
-        this.port = port;
-        this.userName = userName;
-        this.password = password;
+    public FtpScm(@CheckForNull String ftpServer, String ftpPath, @CheckForNull String fileNames,
+            boolean cleanWorkSpace) {
+        this.ftpServer = ftpServer;
         this.ftpPath = ftpPath;
         this.fileNames = fileNames;
         this.cleanWorkSpace = cleanWorkSpace;
@@ -84,30 +71,30 @@ public class FtpScm extends SCM {
             listener.getLogger().println(filePath.getName());
         }
 
-        // listener.getLogger().println("host: " + this.host);
-        // listener.getLogger().println("port: " + this.port);
-        // listener.getLogger().println("userName: " + this.userName);
-        // listener.getLogger().println("password: " + this.password);
-        // listener.getLogger().println("ftpPath: " + this.ftpPath);
-        // listener.getLogger().println("fileNames: " + this.fileNames);
-
-        Pattern r = Pattern.compile(PATTERN);
-        Matcher m = r.matcher(this.host);
-        if (!m.matches()) {
-            listener.getLogger().println(Messages.FtpScm_errors_host());
-            throw new UnknownHostException();
+        FtpInstallation[] ftpInstallations = SampleConfiguration.get().getInstallations();
+        FtpInstallation ftpServer = null;
+        for (FtpInstallation ftpInstallation : ftpInstallations) {
+            if (ftpInstallation.name.equals(this.ftpServer)) {
+                ftpServer = ftpInstallation;
+            }
         }
 
+        if (ftpServer == null) {
+            throw new IOException("No available ftpServer");
+        }
+
+        StandardUsernamePasswordCredentials credentials = SampleConfiguration
+                .getStandardUserAndPwdCred(ftpServer.credentialsId);
+        String username = credentials == null ? "" : credentials.getUsername();
+        String password = credentials == null ? "" : credentials.getPassword().getPlainText();
+
+        FTPClient ftpClient = null;
         try {
-            Integer.parseInt(port);
-        } catch (NumberFormatException e) {
-            listener.getLogger().println(Messages.FtpScm_errors_port());
+            ftpClient = FtpClientUtil.getFtpClient(ftpServer.ip, ftpServer.port, username, password);
+        } catch (Exception e) {
+            listener.getLogger()
+                    .println(String.format("Can't connect to the ftpServer: %s:%s", ftpServer.ip, ftpServer.port));
             throw e;
-        }
-
-        if (this.fileNames == null || this.fileNames.trim().equals("")) {
-            listener.getLogger().println(Messages.FtpScm_errors_fileNames());
-            throw new NullPointerException();
         }
 
         if (cleanWorkSpace) {
@@ -115,23 +102,17 @@ public class FtpScm extends SCM {
             workspace.deleteContents();
         }
 
-        downloadFtpFiles(listener, this.host, this.userName, this.password, Integer.parseInt(this.port), this.ftpPath,
-                workspace.getRemote(), this.fileNames.split(","));
+        downloadFtpFiles(listener, ftpClient, this.ftpPath, workspace.getRemote(), this.fileNames.split(","));
     }
 
-    public void downloadFtpFiles(TaskListener listener, String ftpHost, String ftpUserName, String ftpPassword,
-            int ftpPort, String ftpPath, String localPath, String[] fileNames) throws IOException {
-
+    public void downloadFtpFiles(TaskListener listener, FTPClient ftpClient, String ftpPath, String localPath,
+            String[] fileNames) throws IOException {
         File dir = new File(localPath);
         if (!dir.exists()) {
             dir.mkdirs();
         }
-
-        FTPClient ftpClient = null;
         boolean isDownloadSuccess = false;
-
         try {
-            ftpClient = getFTPClient(listener, ftpHost, ftpUserName, ftpPassword, ftpPort);
             ftpClient.setControlEncoding("UTF-8");
             ftpClient.setFileType(FTPClient.BINARY_FILE_TYPE);
             ftpClient.enterLocalPassiveMode();
@@ -168,32 +149,6 @@ public class FtpScm extends SCM {
         }
     }
 
-    public FTPClient getFTPClient(TaskListener listener, String ftpHost, String ftpUserName, String ftpPassword,
-            int ftpPort) throws IOException {
-        listener.getLogger().println("Start connecting ftp server..");
-        FTPClient ftpClient = null;
-        try {
-            ftpClient = new FTPClient();
-            ftpClient.connect(ftpHost, ftpPort);
-            ftpClient.login(ftpUserName, ftpPassword);
-            ftpClient.setControlEncoding("UTF-8");
-            ftpClient.setFileType(FTPClient.BINARY_FILE_TYPE);
-            ftpClient.enterLocalPassiveMode();
-            if (!FTPReply.isPositiveCompletion(ftpClient.getReplyCode())) {
-                listener.getLogger().println(Messages.FtpScm_errors_credentials());
-                ftpClient.disconnect();
-                throw new IOException(Messages.FtpScm_errors_credentials());
-            } else {
-                listener.getLogger().println("Connect success");
-            }
-        } catch (SocketException e) {
-            throw e;
-        } catch (IOException e) {
-            throw e;
-        }
-        return ftpClient;
-    }
-
     @Override
     public ChangeLogParser createChangeLogParser() {
         return NullChangeLogParser.INSTANCE;
@@ -214,6 +169,15 @@ public class FtpScm extends SCM {
         @Override
         public boolean isApplicable(Job project) {
             return true;
+        }
+
+        public ListBoxModel doFillFtpServerItems() {
+            ListBoxModel model = new ListBoxModel();
+            model.add("FtpServer this build is running on", "");
+            for (FtpInstallation ftpInstallation : SampleConfiguration.get().getInstallations()) {
+                model.add(ftpInstallation.name);
+            }
+            return model;
         }
 
     }
