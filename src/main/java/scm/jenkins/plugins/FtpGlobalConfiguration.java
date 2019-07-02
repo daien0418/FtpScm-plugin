@@ -1,15 +1,12 @@
 package scm.jenkins.plugins;
 
 import java.io.IOException;
-import java.net.SocketException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apache.commons.lang.StringUtils;
-import org.apache.commons.net.ftp.FTPClient;
-import org.apache.commons.net.ftp.FTPReply;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.stapler.QueryParameter;
@@ -39,7 +36,7 @@ import net.sf.json.JSONObject;
  * Example of Jenkins global configuration.
  */
 @Extension
-public class SampleConfiguration extends GlobalConfiguration {
+public class FtpGlobalConfiguration extends GlobalConfiguration {
 
     public static final String PATTERN = "(2[0-5]{2}|[0-1]?\\d{1,2})(\\.(2[0-5]{2}|[0-1]?\\d{1,2})){3}";
 
@@ -47,11 +44,11 @@ public class SampleConfiguration extends GlobalConfiguration {
     public volatile FtpInstallation[] installations = new FtpInstallation[0];
 
     /** @return the singleton instance */
-    public static SampleConfiguration get() {
-        return GlobalConfiguration.all().get(SampleConfiguration.class);
+    public static FtpGlobalConfiguration get() {
+        return GlobalConfiguration.all().get(FtpGlobalConfiguration.class);
     }
 
-    public SampleConfiguration() {
+    public FtpGlobalConfiguration() {
         // When Jenkins is restarted, load any saved configuration from disk.
         load();
     }
@@ -81,20 +78,20 @@ public class SampleConfiguration extends GlobalConfiguration {
         return true;
     }
 
-    public FormValidation doCheckMandatory(@QueryParameter String value) {
-        return StringUtils.isBlank(value) ? FormValidation.error("Name can't be empty") : FormValidation.ok();
+    public FormValidation doCheckName(@QueryParameter String value) {
+        return StringUtils.isBlank(value) ? FormValidation.error(Messages.FtpScm_errors_name()) : FormValidation.ok();
     }
 
     public FormValidation doCheckIp(@QueryParameter String value) {
 
         if (StringUtils.isBlank(value)) {
-            return FormValidation.error("Ip can't be empty");
+            return FormValidation.error(Messages.FtpScm_errors_ip_empty());
         }
 
         Pattern r = Pattern.compile(PATTERN);
         Matcher m = r.matcher(value);
         if (!m.matches()) {
-            return FormValidation.error("Ip is invalid");
+            return FormValidation.error(Messages.FtpScm_errors_ip_invalid());
         }
 
         return FormValidation.ok();
@@ -103,13 +100,13 @@ public class SampleConfiguration extends GlobalConfiguration {
     public FormValidation doCheckPort(@QueryParameter String value) {
 
         if (StringUtils.isBlank(value)) {
-            return FormValidation.error("Port can't be empty");
+            return FormValidation.error(Messages.FtpScm_errors_port_empty());
         }
 
         try {
             Integer.parseInt(value);
         } catch (NumberFormatException e) {
-            return FormValidation.error("Port is invalid");
+            return FormValidation.error(Messages.FtpScm_errors_port_invalid());
         }
 
         return FormValidation.ok();
@@ -153,7 +150,6 @@ public class SampleConfiguration extends GlobalConfiguration {
     }
 
     public ListBoxModel doFillCredentialsIdItems(@QueryParameter("credentialsId") String credentialsId) {
-        System.out.println("credentialsId: " + credentialsId);
         if (Jenkins.getInstance().hasPermission(Item.CONFIGURE)) {
             StandardListBoxModel options = (StandardListBoxModel) new StandardListBoxModel().withEmptySelection()
                     .withMatching(new FtpCredentialMatcher(),

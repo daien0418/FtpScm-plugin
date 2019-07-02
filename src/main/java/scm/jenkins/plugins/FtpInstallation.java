@@ -22,7 +22,6 @@ public class FtpInstallation implements Serializable{
         this.ip = ip;
         this.port = port;
         this.credentialsId = credentialsId;
-        System.out.println("init ftpinstallation");
     }
 
     public String getName() {

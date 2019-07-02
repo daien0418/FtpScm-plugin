@@ -65,13 +65,13 @@ public class FtpScm extends SCM {
             this.createEmptyChangeLog(changelogFile, listener, "log");
         }
 
-        listener.getLogger().println("File list of current workspace:");
+        listener.getLogger().println("File list of current workspace...");
         List<FilePath> filePaths = workspace.list();
         for (FilePath filePath : filePaths) {
             listener.getLogger().println(filePath.getName());
         }
 
-        FtpInstallation[] ftpInstallations = SampleConfiguration.get().getInstallations();
+        FtpInstallation[] ftpInstallations = FtpGlobalConfiguration.get().getInstallations();
         FtpInstallation ftpServer = null;
         for (FtpInstallation ftpInstallation : ftpInstallations) {
             if (ftpInstallation.name.equals(this.ftpServer)) {
@@ -83,8 +83,7 @@ public class FtpScm extends SCM {
             throw new IOException("No available ftpServer");
         }
 
-        StandardUsernamePasswordCredentials credentials = SampleConfiguration
-                .getStandardUserAndPwdCred(ftpServer.credentialsId);
+        StandardUsernamePasswordCredentials credentials = FtpGlobalConfiguration.getStandardUserAndPwdCred(ftpServer.credentialsId);
         String username = credentials == null ? "" : credentials.getUsername();
         String password = credentials == null ? "" : credentials.getPassword().getPlainText();
 
@@ -173,8 +172,8 @@ public class FtpScm extends SCM {
 
         public ListBoxModel doFillFtpServerItems() {
             ListBoxModel model = new ListBoxModel();
-            model.add("FtpServer this build is running on", "");
-            for (FtpInstallation ftpInstallation : SampleConfiguration.get().getInstallations()) {
+            model.add(Messages.FtpScm_info_ftpserver(), "");
+            for (FtpInstallation ftpInstallation : FtpGlobalConfiguration.get().getInstallations()) {
                 model.add(ftpInstallation.name);
             }
             return model;
