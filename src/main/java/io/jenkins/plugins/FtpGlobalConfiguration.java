@@ -1,4 +1,4 @@
-package scm.jenkins.plugins;
+package io.jenkins.plugins;
 
 import java.io.IOException;
 import java.util.ArrayList;
