@@ -2,13 +2,21 @@ package io.jenkins.plugins;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Enumeration;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletResponse;
 
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
+import org.kohsuke.stapler.HttpResponse;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.interceptor.RequirePOST;
@@ -24,19 +32,25 @@ import com.cloudbees.plugins.credentials.domains.DomainRequirement;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.CopyOnWrite;
 import hudson.Extension;
+import hudson.model.Api;
 import hudson.model.Item;
+import hudson.model.UnprotectedRootAction;
 import hudson.security.ACL;
 import hudson.util.FormValidation;
+import hudson.util.HttpResponses;
 import hudson.util.ListBoxModel;
+import hudson.util.ListBoxModel.Option;
 import jenkins.model.GlobalConfiguration;
 import jenkins.model.Jenkins;
+import net.sf.json.JSON;
 import net.sf.json.JSONObject;
+import net.sf.json.util.JSONUtils;
 
 /**
  * Example of Jenkins global configuration.
  */
 @Extension
-public class FtpGlobalConfiguration extends GlobalConfiguration {
+public class FtpGlobalConfiguration extends GlobalConfiguration implements UnprotectedRootAction {
 
     public static final String PATTERN = "(2[0-5]{2}|[0-1]?\\d{1,2})(\\.(2[0-5]{2}|[0-1]?\\d{1,2})){3}";
 
@@ -169,6 +183,68 @@ public class FtpGlobalConfiguration extends GlobalConfiguration {
                 return false;
             }
         }
+    }
+
+    @Override
+    public String getIconFileName() {
+        return null;
+    }
+
+    @Override
+    public String getUrlName() {
+        return "createFtp";
+    }
+
+    public Api getApi() {
+        return new Api(this);
+    }
+
+    @RequirePOST
+    @Restricted(NoExternalUse.class)
+    @SuppressWarnings("unused") // stapler web method
+    public HttpResponse doCreate(StaplerRequest req) throws ServletException, IOException {
+        StringBuilder stringBuilder = new StringBuilder();
+        String line = "";
+        while ((line = req.getReader().readLine()) != null) {
+            stringBuilder.append(line);
+            System.out.println(line);
+        }
+
+        JSONObject jsonObject = JSONObject.fromObject(stringBuilder.toString());
+        FtpInstallation ftpInstallation = (FtpInstallation) JSONObject.toBean(jsonObject, FtpInstallation.class);
+
+        StandardListBoxModel options = (StandardListBoxModel) new StandardListBoxModel().withEmptySelection()
+                .withMatching(new FtpCredentialMatcher(),
+                        CredentialsProvider.lookupCredentials(StandardUsernamePasswordCredentials.class));
+
+        boolean contain = false;
+        Iterator<Option> iterator = options.iterator();
+        while (iterator.hasNext()) {
+            Option op = iterator.next();
+            if (op.value.equals(ftpInstallation.credentialsId)) {
+                contain = true;
+                break;
+            }
+        }
+
+        if (ftpInstallation.credentialsId.trim().equals("")) {
+            contain = true;
+        }
+
+        if (!contain) {
+            return HttpResponses.error(HttpServletResponse.SC_BAD_REQUEST,"credentialId does not exists");
+        }
+
+        List<FtpInstallation> list = new ArrayList<FtpInstallation>();
+        for (FtpInstallation ftp : this.installations) {
+            list.add(ftp);
+        }
+        list.add(ftpInstallation);
+
+        FtpInstallation[] ftps = list.toArray(new FtpInstallation[list.size()]);
+        setInstallations(ftps);
+
+        return HttpResponses.ok();
     }
 
 }

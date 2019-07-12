@@ -4,20 +4,22 @@ import java.io.Serializable;
 
 import org.kohsuke.stapler.DataBoundConstructor;
 
-public class FtpInstallation implements Serializable{
+public class FtpInstallation implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    public final String name;
+    public String name;
 
-    public final String ip;
+    public String ip;
 
-    public final String port;
+    public String port;
 
-    public final String credentialsId;
+    public String credentialsId;
+
+    public FtpInstallation() {}
 
     @DataBoundConstructor
-    public FtpInstallation(String name, String ip, String port,String credentialsId) {
+    public FtpInstallation(String name, String ip, String port, String credentialsId) {
         this.name = name;
         this.ip = ip;
         this.port = port;
@@ -38,6 +40,22 @@ public class FtpInstallation implements Serializable{
 
     public String getCredentialsId() {
         return credentialsId;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public void setIp(String ip) {
+        this.ip = ip;
+    }
+
+    public void setPort(String port) {
+        this.port = port;
+    }
+
+    public void setCredentialsId(String credentialsId) {
+        this.credentialsId = credentialsId;
     }
 
 }
